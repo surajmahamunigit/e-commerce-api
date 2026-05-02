@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, DateTime, func, ForeignKey
-from sqlalchemy.dialects.prostgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
 from app.db.database import Base
