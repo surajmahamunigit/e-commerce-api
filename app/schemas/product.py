@@ -46,3 +46,4 @@ class ProductUpdate(BaseModel):
     price: Decimal | None = None
     stock: int | None = None
     category: str | None = None
+    description: str | None = None

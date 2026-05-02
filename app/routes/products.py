@@ -46,7 +46,6 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
 def create_product(
     product_data: ProductCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """ "
     Requires Authentication.
@@ -65,6 +64,7 @@ def create_product(
         description=product_data.description,
         price=product_data.price,
         stock=product_data.stock,
+        category=product_data.category,
     )
 
     db.add(new_product)
@@ -79,7 +79,6 @@ def update_product(
     product_id: str,
     product_data: ProductUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Requires authentication.
@@ -112,6 +111,9 @@ def update_product(
     if product_data.stock is not None:
         product.stock = product_data.stock
 
+    if product_data.category is not None:
+        product.category = product_data.category
+
     db.commit()
     db.refresh(product)
 
@@ -122,7 +124,6 @@ def update_product(
 def delete_product(
     product_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Requires authentication.

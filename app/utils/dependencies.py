@@ -7,15 +7,14 @@ from app.utils.security import verify_access_token
 
 
 def get_current_user(
-    authorization: str = Header(default=None, alias="Authorization"),
-    db: Session = Depends(get_db),
+    authorization: str = Header(None), db: Session = Depends(get_db)
 ) -> User:
+    """Get the current authenticated user from JWT token"""
 
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     token = authorization.split(" ")[1]
@@ -26,7 +25,6 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     user = db.query(User).filter(User.id == user_id).first()
