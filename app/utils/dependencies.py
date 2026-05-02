@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -7,7 +7,8 @@ from app.utils.security import verify_access_token
 
 
 def get_current_user(
-    authorization: str | None = None, db: Session = Depends(get_db)
+    authorization: str = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
 ) -> User:
 
     if not authorization or not authorization.startswith("Bearer "):

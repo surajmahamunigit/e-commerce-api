@@ -15,6 +15,10 @@ class Product(Base):
 
     name = Column(String(255), nullable=False, index=True)
 
+    description = Column(String(500), nullable=False)
+
+    category = Column(String(100), nullable=False)
+
     price = Column(Numeric(precision=10, scale=2), nullable=False)
 
     stock = Column(Integer, nullable=False, index=True)
@@ -25,4 +29,4 @@ class Product(Base):
     )
 
     def __repr__(self):
-        return f"<Product(id={self.id}, name={self.name}, price={self.price}, stock={self.stock})>"
+        return f"<Product(id={self.id}, name={self.name}, category={self.category}, price={self.price}, stock={self.stock})>"

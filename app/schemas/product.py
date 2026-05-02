@@ -10,6 +10,7 @@ class ProductBase(BaseModel):
     """
 
     name: str
+    description: str
     price: Decimal
     stock: int
     category: str
