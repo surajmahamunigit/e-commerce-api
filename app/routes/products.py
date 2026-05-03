@@ -121,10 +121,7 @@ def update_product(
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(
-    product_id: str,
-    db: Session = Depends(get_db),
-):
+def delete_product(product_id: str, db: Session = Depends(get_db)):
     """
     Requires authentication.
 
