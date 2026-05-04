@@ -41,7 +41,7 @@ class OrderResponse(OrderBase):
 
     id: UUID
     user_id: UUID
-    stripe_payment_id: str | None
+    stripe_payment_id: str | None = None
     items: list[OrderItemResponse]
     created_at: datetime
     updated_at: datetime
