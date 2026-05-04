@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models import Product
@@ -32,7 +33,14 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
     Single product or 404 error
     """
 
-    product = db.query(Product).filter(Product.id == product_id).first()
+    try:
+        product_uuid = UUID(product_id)  # ✅ Convert string to UUID
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product ID format"
+        )
+
+    product = db.query(Product).filter(Product.id == product_uuid).first()
 
     if product is None:
         raise HTTPException(
@@ -92,7 +100,14 @@ def update_product(
         Updated product.
     """
 
-    product = db.query(Product).filter(Product.id == product_id).first()
+    try:
+        product_uuid = UUID(product_id)  # ✅ Convert string to UUID
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product ID format"
+        )
+
+    product = db.query(Product).filter(Product.id == product_uuid).first()
 
     if product is None:
         raise HTTPException(
@@ -132,8 +147,13 @@ def delete_product(product_id: str, db: Session = Depends(get_db)):
     Returns:
         No content, 204 status code (deleted ).
     """
-
-    product = db.query(Product).filter(Product.id == product_id).first()
+    try:
+        product_uuid = UUID(product_id)  # ✅ Convert string to UUID
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product ID format"
+        )
+    product = db.query(Product).filter(Product.id == product_uuid).first()
 
     if product is None:
         raise HTTPException(
