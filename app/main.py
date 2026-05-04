@@ -5,11 +5,6 @@ from fastapi.openapi.utils import get_openapi
 from app.db.database import Base, engine
 from app.routes import auth, products, cart, orders
 
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception:
-    pass
-
 app = FastAPI(
     title="E-Commerce API",
     description="Production-grade e-commerce REST API",

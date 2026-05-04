@@ -5,49 +5,35 @@ from app.db.database import Base, get_db
 from app.main import app
 from fastapi.testclient import TestClient
 
-# [LEARN] SQLite in-memory database for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-# [LEARN] Create test engine
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
 
-# [LEARN] Create session factory
+Base.metadata.create_all(bind=engine)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 @pytest.fixture(scope="function")
 def db():
-    """
-    [LEARN] Create fresh database for each test
-    """
-    # [LEARN] Create ALL tables BEFORE test runs
-    Base.metadata.create_all(bind=engine)
 
-    session = TestingSessionLocal()
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = TestingSessionLocal(bind=connection)
 
-    try:
-        yield session
-    finally:
-        session.close()
-        # [LEARN] Drop all tables after test
-        Base.metadata.drop_all(bind=engine)
+    yield session
+
+    session.close()
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture(scope="function")
 def client(db: Session):
-    """
-    [LEARN] Provides API client with test database
-    """
 
-    # [LEARN] Override get_db dependency
     def override_get_db():
-        try:
-            yield db
-        finally:
-            pass  # Don't close, fixture handles it
+        yield db
 
     app.dependency_overrides[get_db] = override_get_db
-
-    return TestClient(app)
+    yield TestClient(app)
+    app.dependency_overrides.clear()
