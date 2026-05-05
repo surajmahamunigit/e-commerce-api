@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models import Order, OrderItem, CartItem, Product, User
@@ -126,22 +127,29 @@ def get_order(order_id: str, db: Session = Depends(get_db)):
     Returns single order with order items
     """
 
-    order = db.query(Order).filter(Order.id == order_id).first()
+    # Covert the string to UUId
+    try:
+        order_uuid = UUID(order_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid order ID format"
+        )
+
+    user = db.query(User).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No users in database. Register first.",
+        )
+    user_id = user.id
+
+    order = db.query(Order).filter(Order.id == order_uuid).first()
     if order is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
         )
 
-    # Get all the items for this order
     order_items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+    order.items = order_items
 
-    return {
-        "id": order.id,
-        "user_id": order.user_id,
-        "total_amount": order.total_amount,
-        "status": order.status,
-        "stripe_payment_id": order.stripe_payment_id,
-        "created_at": order.created_at,
-        "updated_at": order.updated_at,
-        "items": order_items,
-    }
+    return order
