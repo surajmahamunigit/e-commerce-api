@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models import CartItem, Product, User, user
@@ -87,7 +88,7 @@ def view_cart(db: Session = Depends(get_db)):
     }
 
 
-@router.delete("/remove/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/remove/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_from_cart(product_id: str, db: Session = Depends(get_db)):
     """
     Deletes the CartItem.
@@ -98,8 +99,15 @@ def remove_from_cart(product_id: str, db: Session = Depends(get_db)):
     Returns:
         No Content (status-code = 204)
     """
+    try:
+        product_uuid = UUID(product_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product ID format"
+        )
 
     user = db.query(User).first()
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -109,7 +117,7 @@ def remove_from_cart(product_id: str, db: Session = Depends(get_db)):
 
     cart_item = (
         db.query(CartItem)
-        .filter(CartItem.user_id == user_id, CartItem.product_id == product_id)
+        .filter(CartItem.user_id == user_id, CartItem.product_id == product_uuid)
         .first()
     )
 
