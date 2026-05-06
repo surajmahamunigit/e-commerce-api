@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 
 def test_create_product(client):
-    """Test creating new product"""
+    """Test creating new product as admin"""
+
     payload = {
         "name": "Laptop",
         "description": "High-performance laptop",
@@ -16,7 +17,14 @@ def test_create_product(client):
         "category": "Electronics",
     }
 
-    response = client.post("/products/", json=payload)
+    # Register as admin
+    user_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=user_payload)
+    login_response = client.post("/auth/login", json=user_payload)
+    token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post("/products/", json=payload, headers=headers)
 
     assert response.status_code == 201
     data = response.json()
@@ -32,13 +40,20 @@ def test_create_product_missing_field(client):
         "name": "laptop",
     }
 
-    response = client.post("/products/", json=payload)
+    # Register as admin
+    user_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=user_payload)
+    login_response = client.post("/auth/login", json=user_payload)
+    token = login_response.json()["access_token"]
 
-    assert response.status_code == 422  # VAlidation error
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post("/products/", json=payload, headers=headers)
+
+    assert response.status_code == 422  # Validation error
 
 
 def test_list_products(client):
-    """Test listing all the products"""
+    """Test listing all the products - no auth required"""
 
     product1 = {
         "name": "product1",
@@ -56,21 +71,30 @@ def test_list_products(client):
         "category": "Electronics",
     }
 
-    client.post("/products/", json=product1)
-    client.post("/products/", json=product2)
+    # Register as admin to create products
+    user_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=user_payload)
+    login_response = client.post("/auth/login", json=user_payload)
+    token = login_response.json()["access_token"]
 
-    # List products
+    headers = {"Authorization": f"Bearer {token}"}
+    client.post("/products/", json=product1, headers=headers)
+    client.post("/products/", json=product2, headers=headers)
+
+    # List products - NO auth needed
     response = client.get("/products/")
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 2
-    assert data[0]["name"] in ["product1", "product2"]
+
+    product_names = [p["name"] for p in data]
+    assert "product1" in product_names
+    assert "product2" in product_names
 
 
 def test_get_product(client):
-    """Test retriveing a single product by product id"""
+    """Test retrieving a single product by product id - no auth required"""
 
-    # create a product
     payload = {
         "name": "HP pro",
         "description": "gaming laptop",
@@ -78,10 +102,18 @@ def test_get_product(client):
         "stock": 12,
         "category": "Electronics",
     }
-    create_response = client.post("/products/", json=payload)
+
+    #  Register as admin to create product
+    user_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=user_payload)
+    login_response = client.post("/auth/login", json=user_payload)
+    token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
+    create_response = client.post("/products/", json=payload, headers=headers)
     product_id = create_response.json()["id"]
 
-    # Get the product
+    #  Get the product - NO auth needed
     response = client.get(f"/products/{product_id}")
     assert response.status_code == 200
     data = response.json()
@@ -98,9 +130,8 @@ def test_get_nonexistent_product(client):
 
 
 def test_update_product(client):
-    """Test update a product"""
+    """Test update a product - only admin can update"""
 
-    # create a product
     payload = {
         "name": "original name",
         "description": "original description",
@@ -108,10 +139,20 @@ def test_update_product(client):
         "stock": 1,
         "category": "Electronics",
     }
-    create_response = client.post("/products/", json=payload)
+
+    #  Register as admin
+    user_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=user_payload)
+    login_response = client.post("/auth/login", json=user_payload)
+    token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    #  Create product as admin
+    create_response = client.post("/products/", json=payload, headers=headers)
     product_id = create_response.json()["id"]
 
-    # Update the product
+    #  Update the product as admin
     update_payload = {
         "name": "updated name",
         "description": "updated description",
@@ -119,7 +160,9 @@ def test_update_product(client):
         "stock": 0,
         "category": "Electronics",
     }
-    response = client.put(f"/products/{product_id}", json=update_payload)
+    response = client.put(
+        f"/products/{product_id}", json=update_payload, headers=headers
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "updated name"
@@ -127,9 +170,8 @@ def test_update_product(client):
 
 
 def test_delete_product(client):
-    """Test delete a product"""
+    """Test delete a product - only admin can delete"""
 
-    # Create a payload
     payload = {
         "name": " name",
         "description": " description",
@@ -137,13 +179,23 @@ def test_delete_product(client):
         "stock": 1,
         "category": "Electronics",
     }
-    create_response = client.post("/products/", json=payload)
+
+    # Register as admin
+    user_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=user_payload)
+    login_response = client.post("/auth/login", json=user_payload)
+    token = login_response.json()["access_token"]
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create product as admin
+    create_response = client.post("/products/", json=payload, headers=headers)
     product_id = create_response.json()["id"]
 
-    # Delete product
-    response = client.delete(f"/products/{product_id}")
+    #  Delete product as admin
+    response = client.delete(f"/products/{product_id}", headers=headers)
     assert response.status_code == 204
 
-    # Verify
+    #  Verify it's gone - no auth needed for GET
     verify_response = client.get(f"/products/{product_id}")
     assert verify_response.status_code == 404

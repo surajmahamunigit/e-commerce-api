@@ -9,6 +9,13 @@ from sqlalchemy.orm import Session
 def test_add_to_cart(client):
     """Test adding a product to the cart"""
 
+    # Register admin and get token
+    admin_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=admin_payload)
+    admin_login = client.post("/auth/login", json=admin_payload)
+    admin_token = admin_login.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
     # Create a product
     product_payload = {
         "name": "Laptop",
@@ -17,22 +24,25 @@ def test_add_to_cart(client):
         "stock": 5,
         "category": "Electronics",
     }
-    product_response = client.post("/products/", json=product_payload)
+    product_response = client.post(
+        "/products/", json=product_payload, headers=admin_headers
+    )
     product_id = product_response.json()["id"]
 
-    # Register and login
-    user_payload = {"email": "testuser@example.com", "password": "password123"}
+    # Register regular user and get token
+    user_payload = {"email": "user1@example.com", "password": "password123"}
     client.post("/auth/register", json=user_payload)
-    login_response = client.post("/auth/login", json=user_payload)
-    token = login_response.json()["access_token"]
+    user_login = client.post("/auth/login", json=user_payload)
+    user_token = user_login.json()["access_token"]
+    user_headers = {"Authorization": f"Bearer {user_token}"}
 
     # Add to cart
     cart_payload = {
         "product_id": product_id,
         "quantity": 2,
     }
-    headers = {"Authorization": f"Bearer {token}"}
-    response = client.post("/cart/add", json=cart_payload, headers=headers)
+
+    response = client.post("/cart/add", json=cart_payload, headers=user_headers)
 
     assert response.status_code == 201
     data = response.json()
@@ -43,6 +53,13 @@ def test_add_to_cart(client):
 def test_get_cart(client):
     """Retrieving the user's cart"""
 
+    # Register admin and get token
+    admin_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=admin_payload)
+    admin_login = client.post("/auth/login", json=admin_payload)
+    admin_token = admin_login.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
     # Create a product
     product_payload = {
         "name": "Laptop",
@@ -51,25 +68,28 @@ def test_get_cart(client):
         "stock": 5,
         "category": "Electronics",
     }
-    product_response = client.post("/products/", json=product_payload)
+    product_response = client.post(
+        "/products/", json=product_payload, headers=admin_headers
+    )
     product_id = product_response.json()["id"]
 
-    # Register and login
-    user_payload = {"email": "cartuser@example.com", "password": "password123"}
+    # Register regular user and get token
+    user_payload = {"email": "user1@example.com", "password": "password123"}
     client.post("/auth/register", json=user_payload)
-    login_response = client.post("/auth/login", json=user_payload)
-    token = login_response.json()["access_token"]
+    user_login = client.post("/auth/login", json=user_payload)
+    user_token = user_login.json()["access_token"]
+    user_headers = {"Authorization": f"Bearer {user_token}"}
 
     # Add to cart
     cart_payload = {
         "product_id": product_id,
         "quantity": 1,
     }
-    headers = {"Authorization": f"Bearer {token}"}
-    client.post("/cart/add", json=cart_payload, headers=headers)
+
+    client.post("/cart/add", json=cart_payload, headers=user_headers)
 
     # Get cart
-    response = client.get("/cart/", headers=headers)
+    response = client.get("/cart/", headers=user_headers)
     assert response.status_code == 200
     data = response.json()
 
@@ -81,6 +101,13 @@ def test_get_cart(client):
 def test_remove_from_cart(client):
     """Test removing a product from the cart"""
 
+    #  Register admin and get token
+    admin_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=admin_payload)
+    admin_login = client.post("/auth/login", json=admin_payload)
+    admin_token = admin_login.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
     # Create a product
     product_payload = {
         "name": "Monitor",
@@ -89,29 +116,32 @@ def test_remove_from_cart(client):
         "stock": 10,
         "category": "Electronics",
     }
-    product_response = client.post("/products/", json=product_payload)
+    product_response = client.post(
+        "/products/", json=product_payload, headers=admin_headers
+    )
     product_id = product_response.json()["id"]
 
-    # Register and login
-    user_payload = {"email": "removeuser@example.com", "password": "password123"}
+    #  Register regular user and get token
+    user_payload = {"email": "user1@example.com", "password": "password123"}
     client.post("/auth/register", json=user_payload)
-    login_response = client.post("/auth/login", json=user_payload)
-    token = login_response.json()["access_token"]
+    user_login = client.post("/auth/login", json=user_payload)
+    user_token = user_login.json()["access_token"]
+    user_headers = {"Authorization": f"Bearer {user_token}"}
 
     # Add to cart
     cart_payload = {
         "product_id": product_id,
         "quantity": 1,
     }
-    headers = {"Authorization": f"Bearer {token}"}
-    client.post("/cart/add", json=cart_payload, headers=headers)
+
+    client.post("/cart/add", json=cart_payload, headers=user_headers)
 
     # Remove from cart (using product_id since that's what your route expects)
-    response = client.delete(f"/cart/remove/{product_id}", headers=headers)
+    response = client.delete(f"/cart/remove/{product_id}", headers=user_headers)
     assert response.status_code == 204
 
     # Verify it's gone
-    verify_response = client.get("/cart/", headers=headers)
+    verify_response = client.get("/cart/", headers=user_headers)
     assert verify_response.status_code == 200
     data = verify_response.json()
 

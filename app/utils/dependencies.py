@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models import User
@@ -28,6 +29,21 @@ def get_current_user(
         )
 
     user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
+    # Concert string user_id to UUID
+    try:
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format"
+        )
+
+    user = db.query(User).filter(User.id == user_uuid).first()  # ✅ Use user_uuid
 
     if user is None:
         raise HTTPException(

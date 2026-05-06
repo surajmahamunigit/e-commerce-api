@@ -8,7 +8,15 @@ from sqlalchemy.orm import Session
 
 def test_checkout(client):
     """Test creating an order from cart"""
-    # Create a product
+
+    # Register admin and get token
+    admin_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=admin_payload)
+    admin_login = client.post("/auth/login", json=admin_payload)
+    admin_token = admin_login.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    #  Create product as admin
     product_payload = {
         "name": "Laptop",
         "description": "Gaming Laptop",
@@ -16,28 +24,32 @@ def test_checkout(client):
         "stock": 5,
         "category": "Electronics",
     }
-    product_response = client.post("/products/", json=product_payload)
+    product_response = client.post(
+        "/products/", json=product_payload, headers=admin_headers
+    )
     product_id = product_response.json()["id"]
 
-    # Register and login
+    #  Register regular user and login
     user_payload = {"email": "orderuser@example.com", "password": "password123"}
     client.post("/auth/register", json=user_payload)
     login_response = client.post("/auth/login", json=user_payload)
     token = login_response.json()["access_token"]
+    user_headers = {"Authorization": f"Bearer {token}"}
 
     # Add to cart
     cart_payload = {
         "product_id": product_id,
         "quantity": 2,
     }
-    headers = {"Authorization": f"Bearer {token}"}
-    client.post("/cart/add", json=cart_payload, headers=headers)
+    client.post("/cart/add", json=cart_payload, headers=user_headers)
 
     # Checkout
     checkout_payload = {
-        "shipping_address": "123 Main St, New York, NY 10001",
+        "shipping_address": "123 Main St, New York, NY 123451",
     }
-    response = client.post("/orders/checkout", json=checkout_payload, headers=headers)
+    response = client.post(
+        "/orders/checkout", json=checkout_payload, headers=user_headers
+    )
 
     assert response.status_code == 201
     data = response.json()
@@ -47,7 +59,15 @@ def test_checkout(client):
 
 def test_get_orders(client):
     """Test retrieving all user's orders"""
-    # Create a product
+
+    #  Register admin and get token
+    admin_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=admin_payload)
+    admin_login = client.post("/auth/login", json=admin_payload)
+    admin_token = admin_login.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    #  Create product as admin
     product_payload = {
         "name": "Mouse",
         "description": "Wireless Mouse",
@@ -55,41 +75,51 @@ def test_get_orders(client):
         "stock": 50,
         "category": "Electronics",
     }
-    product_response = client.post("/products/", json=product_payload)
+    product_response = client.post(
+        "/products/", json=product_payload, headers=admin_headers
+    )
     product_id = product_response.json()["id"]
 
-    # Register and login
+    #  Register regular user and login
     user_payload = {"email": "getorders@example.com", "password": "password123"}
     client.post("/auth/register", json=user_payload)
     login_response = client.post("/auth/login", json=user_payload)
     token = login_response.json()["access_token"]
+    user_headers = {"Authorization": f"Bearer {token}"}
 
     # Add to cart
     cart_payload = {
         "product_id": product_id,
         "quantity": 1,
     }
-    headers = {"Authorization": f"Bearer {token}"}
-    client.post("/cart/add", json=cart_payload, headers=headers)
+    client.post("/cart/add", json=cart_payload, headers=user_headers)
 
     # Checkout
     checkout_payload = {
         "shipping_address": "456 Oak Ave, Los Angeles, CA 90001",
     }
-    client.post("/orders/checkout", json=checkout_payload, headers=headers)
+    client.post("/orders/checkout", json=checkout_payload, headers=user_headers)
 
     # Get orders
-    response = client.get("/orders/", headers=headers)
+    response = client.get("/orders/", headers=user_headers)
 
     assert response.status_code == 200
     data = response.json()
     assert len(data) >= 1
-    assert data[0]["total_amount"] == "29.99"
+    assert any(order["total_amount"] == "29.99" for order in data)
 
 
 def test_get_single_order(client):
     """Test retrieving a single order"""
-    # Create a product
+
+    # Register admin and get token
+    admin_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=admin_payload)
+    admin_login = client.post("/auth/login", json=admin_payload)
+    admin_token = admin_login.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    #  Create product as admin
     product_payload = {
         "name": "Keyboard",
         "description": "Mechanical Keyboard",
@@ -97,34 +127,36 @@ def test_get_single_order(client):
         "stock": 20,
         "category": "Electronics",
     }
-    product_response = client.post("/products/", json=product_payload)
+    product_response = client.post(
+        "/products/", json=product_payload, headers=admin_headers
+    )
     product_id = product_response.json()["id"]
 
-    # Register and login
+    # Register regular user and login
     user_payload = {"email": "singleorder@example.com", "password": "password123"}
     client.post("/auth/register", json=user_payload)
     login_response = client.post("/auth/login", json=user_payload)
     token = login_response.json()["access_token"]
+    user_headers = {"Authorization": f"Bearer {token}"}
 
     # Add to cart
     cart_payload = {
         "product_id": product_id,
         "quantity": 1,
     }
-    headers = {"Authorization": f"Bearer {token}"}
-    client.post("/cart/add", json=cart_payload, headers=headers)
+    client.post("/cart/add", json=cart_payload, headers=user_headers)
 
     # Checkout
     checkout_payload = {
         "shipping_address": "789 Elm St, Chicago, IL 60601",
     }
     checkout_response = client.post(
-        "/orders/checkout", json=checkout_payload, headers=headers
+        "/orders/checkout", json=checkout_payload, headers=user_headers
     )
     order_id = checkout_response.json()["id"]
 
     # Get single order
-    response = client.get(f"/orders/{order_id}", headers=headers)
+    response = client.get(f"/orders/{order_id}", headers=user_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -134,7 +166,15 @@ def test_get_single_order(client):
 
 def test_order_total_calculation(client):
     """Test that order total is calculated correctly"""
-    # Create a product
+
+    #  Register admin and get token
+    admin_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=admin_payload)
+    admin_login = client.post("/auth/login", json=admin_payload)
+    admin_token = admin_login.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    #  Create product as admin
     product_payload = {
         "name": "Monitor",
         "description": "4K Monitor",
@@ -142,28 +182,32 @@ def test_order_total_calculation(client):
         "stock": 10,
         "category": "Electronics",
     }
-    product_response = client.post("/products/", json=product_payload)
+    product_response = client.post(
+        "/products/", json=product_payload, headers=admin_headers
+    )
     product_id = product_response.json()["id"]
 
-    # Register and login
+    #  Register regular user and login
     user_payload = {"email": "totalstest@example.com", "password": "password123"}
     client.post("/auth/register", json=user_payload)
     login_response = client.post("/auth/login", json=user_payload)
     token = login_response.json()["access_token"]
+    user_headers = {"Authorization": f"Bearer {token}"}
 
     # Add to cart - quantity 3
     cart_payload = {
         "product_id": product_id,
         "quantity": 3,
     }
-    headers = {"Authorization": f"Bearer {token}"}
-    client.post("/cart/add", json=cart_payload, headers=headers)
+    client.post("/cart/add", json=cart_payload, headers=user_headers)
 
     # Checkout
     checkout_payload = {
         "shipping_address": "999 Pine St, Seattle, WA 98101",
     }
-    response = client.post("/orders/checkout", json=checkout_payload, headers=headers)
+    response = client.post(
+        "/orders/checkout", json=checkout_payload, headers=user_headers
+    )
 
     assert response.status_code == 201
     data = response.json()

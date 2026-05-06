@@ -5,6 +5,7 @@ from uuid import UUID
 from app.db.database import get_db
 from app.models import Order, OrderItem, CartItem, Product, User
 from app.schemas.order import OrderResponse, OrderItemResponse
+from app.utils.dependencies import get_current_user
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -12,18 +13,15 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 @router.post(
     "/checkout", response_model=OrderResponse, status_code=status.HTTP_201_CREATED
 )
-def checkout(db: Session = Depends(get_db)):
+def checkout(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """
     Returns order details after successful checkout.
     """
 
-    user = db.query(User).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
-        )
-
-    user_id = user.id
+    # Get current user
+    user_id = current_user.id
 
     cart_items = db.query(CartItem).filter(CartItem.user_id == user_id).all()
     if not cart_items:
@@ -86,18 +84,15 @@ def checkout(db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=list[OrderResponse])
-def get_orders(db: Session = Depends(get_db)):
+def get_orders(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """
     Returns list of orders with items for the user
     """
 
-    user = db.query(User).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="User is not in database"
-        )
-
-    user_id = user.id
+    # Get current user
+    user_id = current_user.id
 
     # Get all orders for a user, and attach items to the orders
     orders = db.query(Order).filter(Order.user_id == user_id).all()
@@ -122,7 +117,11 @@ def get_orders(db: Session = Depends(get_db)):
 
 
 @router.get("/{order_id}", response_model=OrderResponse)
-def get_order(order_id: str, db: Session = Depends(get_db)):
+def get_order(
+    order_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Returns single order with order items
     """
@@ -135,15 +134,12 @@ def get_order(order_id: str, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid order ID format"
         )
 
-    user = db.query(User).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No users in database. Register first.",
-        )
-    user_id = user.id
+    # Get curent user
+    user_id = current_user.id
 
-    order = db.query(Order).filter(Order.id == order_uuid).first()
+    order = (
+        db.query(Order).filter(Order.id == order_uuid, Order.user_id == user_id).first()
+    )
     if order is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"

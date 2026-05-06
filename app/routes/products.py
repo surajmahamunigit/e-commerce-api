@@ -34,7 +34,7 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
     """
 
     try:
-        product_uuid = UUID(product_id)  # ✅ Convert string to UUID
+        product_uuid = UUID(product_id)  # Convert string to UUID
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product ID format"
@@ -53,6 +53,7 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(
     product_data: ProductCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """ "
@@ -66,6 +67,13 @@ def create_product(
     Returns:
         Created product with product_id.
     """
+
+    #  Admin check
+    if current_user.email != "admin@example.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can create products",
+        )
 
     new_product = Product(
         name=product_data.name,
@@ -86,6 +94,7 @@ def create_product(
 def update_product(
     product_id: str,
     product_data: ProductUpdate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
@@ -100,8 +109,15 @@ def update_product(
         Updated product.
     """
 
+    # Admin check
+    if current_user.email != "admin@example.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can create products",
+        )
+
     try:
-        product_uuid = UUID(product_id)  # ✅ Convert string to UUID
+        product_uuid = UUID(product_id)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product ID format"
@@ -136,7 +152,11 @@ def update_product(
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: str, db: Session = Depends(get_db)):
+def delete_product(
+    product_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """
     Requires authentication.
 
@@ -147,8 +167,15 @@ def delete_product(product_id: str, db: Session = Depends(get_db)):
     Returns:
         No content, 204 status code (deleted ).
     """
+
+    # Admin check
+    if current_user.email != "admin@example.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete products",
+        )
     try:
-        product_uuid = UUID(product_id)  # ✅ Convert string to UUID
+        product_uuid = UUID(product_id)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid product ID format"
