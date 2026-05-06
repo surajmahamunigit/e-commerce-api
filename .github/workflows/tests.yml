@@ -30,6 +30,7 @@ jobs:
       SECRET_KEY: testsecretkey
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      PYTHONPATH: .
 
     steps:
       - uses: actions/checkout@v3
