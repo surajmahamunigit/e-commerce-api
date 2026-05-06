@@ -12,15 +12,25 @@ router = APIRouter(prefix="/products", tags=["Products"])
 
 
 @router.get("/", response_model=list[ProductResponse])
-def list_products(db: Session = Depends(get_db)):
-    """
-    Returns the list of all products in the database.
-    No authentication required here, as this is a public endpoint.
-    """
+def list_products(
+    category: str = None,
+    min_price: float = None,
+    max_price: float = None,
+    skip: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+):
+    # ✅ Initialize query first!
+    query = db.query(Product)
 
-    products = db.query(Product).all()
+    if category:
+        query = query.filter(Product.category == category)
+    if min_price is not None:
+        query = query.filter(Product.price >= min_price)
+    if max_price is not None:
+        query = query.filter(Product.price <= max_price)
 
-    return products
+    return query.offset(skip).limit(limit).all()
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
