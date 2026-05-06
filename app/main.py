@@ -45,23 +45,16 @@ def custom_openapi():
 
     # Add Bearer token security scheme
     openapi_schema["components"]["securitySchemes"] = {
-        "bearer": {
+        "HTTPBearer": {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
+            "description": "JWT Bearer token",
         }
     }
 
-    # Apply security to protected routes
-    for path, path_item in openapi_schema["paths"].items():
-        if "/products/" in path and path not in ["/products/"]:
-            # POST, PUT, DELETE need auth
-            if "post" in path_item:
-                path_item["post"]["security"] = [{"bearer": []}]
-            if "put" in path_item:
-                path_item["put"]["security"] = [{"bearer": []}]
-            if "delete" in path_item:
-                path_item["delete"]["security"] = [{"bearer": []}]
+    # Set global security (applies to all endpoints by default)
+    openapi_schema["security"] = [{"HTTPBearer": []}]
 
     app.openapi_schema = openapi_schema
     return app.openapi_schema
