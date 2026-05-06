@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from app.db.database import Base, get_db
 from app.main import app
 from fastapi.testclient import TestClient
+from unittest.mock import patch, MagicMock
 import os
 
 # Use PostgreSQL in Docker, SQLite locally
@@ -30,7 +31,20 @@ def db():
     yield session
     session.close()
     transaction.rollback()
-    connection.close()
+
+
+@pytest.fixture(autouse=True)
+def mock_stripe():
+    """
+    Mock Stripe so tests don't make real API calls.
+
+    """
+    with patch("app.utils.stripe_handler.stripe.PaymentIntent.create") as mock_create:
+        mock_intent = MagicMock()
+        mock_intent.client_secret = "test_client_secret"
+        mock_intent.id = "pi_test_123456"
+        mock_create.return_value = mock_intent
+        yield mock_create
 
 
 @pytest.fixture(scope="function")

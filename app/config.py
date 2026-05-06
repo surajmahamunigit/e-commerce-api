@@ -16,10 +16,11 @@ class Settings(BaseSettings):
 
     # Strip configuration
     STRIPE_API_KEY: str = "sk_test_your_stripe_test_key_here"
+    STRIPE_SECRET_KEY: str = "sk_test_your_stripe_test_key_here"
     STRIPE_WEBHOOK_SECRET: str = "whsec_your_webhook_secret_here"
 
     # Environment
-    ENVIRONMENT: str = "developement"
+    ENVIRONMENT: str = "development"
 
     class Config:
         env_file = ".env"

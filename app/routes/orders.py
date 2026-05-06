@@ -6,6 +6,7 @@ from app.db.database import get_db
 from app.models import Order, OrderItem, CartItem, Product, User
 from app.schemas.order import OrderResponse, OrderItemResponse
 from app.utils.dependencies import get_current_user
+from app.utils.stripe_handler import create_payment_intent
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -41,7 +42,22 @@ def checkout(
                 detail=f"Product with id {item.product_id} not found.",
             )
 
-    order = Order(user_id=user_id, total_amount=total_amount, status="pending")
+    # Create Strip PaymentIntent
+    try:
+        payment_data = create_payment_intent(total_amount)
+        stripe_payment_id = payment_data["payment_intent_id"]
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment processing error: {str(e)}",
+        )
+
+    order = Order(
+        user_id=user_id,
+        total_amount=total_amount,
+        status="pending",
+        stripe_payment_id=stripe_payment_id,
+    )
     db.add(order)
     db.commit()
     db.refresh(order)
