@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from decimal import Decimal
 from datetime import datetime
 from uuid import UUID
+from typing import Literal
 
 
 class OrderItemBase(BaseModel):
@@ -48,3 +49,11 @@ class OrderResponse(OrderBase):
 
     class Config:
         from_attributes = True
+
+
+class OrderStatusUpdate(BaseModel):
+    "Used for updating the order status"
+
+    status: Literal[
+        "confirmed", "shipped", "delivered", "cancelled"
+    ]  # Pydantic only accepts these exact values

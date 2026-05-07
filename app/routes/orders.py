@@ -4,7 +4,7 @@ from uuid import UUID
 
 from app.db.database import get_db
 from app.models import Order, OrderItem, CartItem, Product, User
-from app.schemas.order import OrderResponse, OrderItemResponse
+from app.schemas.order import OrderResponse, OrderItemResponse, OrderStatusUpdate
 from app.utils.dependencies import get_current_user
 from app.utils.stripe_handler import create_payment_intent
 
@@ -161,6 +161,73 @@ def get_order(
             status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
         )
 
+    order_items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+    order.items = order_items
+
+    return order
+
+
+# State Machine endpoints
+VALID_TRANSITIONS = {
+    "pending": ["confirmed", "cancelled"],
+    "confirmed": ["shipped", "cancelled"],
+    "shipped": ["delivered"],
+    "delivered": [],
+    "cancelled": [],
+}
+
+
+@router.patch("/{order_id}/status", response_model=OrderResponse)
+def update_order_status(
+    order_id: str,
+    status_update: OrderStatusUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Update order status - Admin only,
+    Enforces valid state transition:
+    pending -> confirmed -> shipped -> delivered
+    pending/confirmed -> cancelled
+    """
+
+    # Allow only Admin to chnag ethe status
+    if current_user.email != "admin@example.com":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin can updat ethe order status",
+        )
+
+    # Conver order_id (str) to UUID
+    try:
+        order_uuid = UUID(order_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid order ID format"
+        )
+
+    # Find the order
+    order = db.query(Order).filter(Order.id == order_uuid).first()
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+        )
+
+    # Check if the transition is valid
+    allowed = VALID_TRANSITIONS.get(order.status, [])
+
+    if status_update.status not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Can not transition from '{order.status}' to '{status_update.status}'. Allowed: '{allowed}",
+        )
+
+    # Update the status
+    order.status = status_update.status
+    db.commit()
+    db.refresh(order)
+
+    # Attach order items
     order_items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
     order.items = order_items
 

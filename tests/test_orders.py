@@ -213,3 +213,91 @@ def test_order_total_calculation(client):
     data = response.json()
     # 399.99 * 3 = 1199.97
     assert data["total_amount"] == "1199.97"
+
+
+def test_order_status_state_machine(client):
+    """
+    Test order status transition - (admin only)
+    """
+
+    # Register admin
+    admin_payload = {"email": "admin@example.com", "password": "password123"}
+    client.post("/auth/register", json=admin_payload)
+    admin_login = client.post("/auth/login", json=admin_payload)
+    admin_token = admin_login.json()["access_token"]
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # Create a product as admin
+    product_payload = {
+        "name": "test product",
+        "description": "test",
+        "price": 99.99,
+        "stock": 10,
+        "category": "electronics",
+    }
+    product_response = client.post(
+        "/products/", json=product_payload, headers=admin_headers
+    )
+    product_id = product_response.json()["id"]
+
+    # Register user
+    user_payload = {
+        "email": "statemachineuser@example.com",
+        "password": "password123",
+    }
+    client.post("/auth/register", json=user_payload)
+    user_login = client.post("/auth/login", json=user_payload)
+    user_token = user_login.json()["access_token"]
+    user_headers = {"Authorization": f"Bearer {user_token}"}
+
+    # Add product to the cart and checkout
+    client.post(
+        "/cart/add",
+        json={"product_id": product_id, "quantity": 1},
+        headers=user_headers,
+    )
+    checkout_response = client.post("/orders/checkout", json={}, headers=user_headers)
+    order_id = checkout_response.json()["id"]
+
+    # Test valid transition: from pending -> confirmed
+    response = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "confirmed"},
+        headers=admin_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "confirmed"
+
+    # Test valid transition: from confirmed -> shipped
+    response = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "shipped"},
+        headers=admin_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "shipped"
+
+    # Test valid transition: from shipped -> delivered
+    response = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "delivered"},
+        headers=admin_headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "delivered"
+
+    # Test invalid transition: from delivered -> cancelled (not allowed)
+    response = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "cancelled"},
+        headers=admin_headers,
+    )
+    assert response.status_code == 400
+
+    # Test user cannot update status
+    response = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "cancelled"},
+        headers=user_headers,
+    )
+    assert response.status_code == 403
