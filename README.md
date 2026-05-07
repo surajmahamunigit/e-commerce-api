@@ -12,7 +12,8 @@ A production-grade REST API for an e-commerce platform built with **FastAPI** an
 - **Shopping Cart** — Add, view, and remove items tied to authenticated users
 - **Order Management** — Checkout from cart, view order history, single order retrieval
 - **Dockerized** — Full Docker + docker-compose setup with PostgreSQL
-- **18 Passing Tests** — Comprehensive test suite covering auth, products, cart, and orders
+- **19 Passing Tests** — Comprehensive test suite covering auth, products, cart, and orders
+- **Order State Machine** — Enforces valid order status transitions (pending → confirmed → shipped → delivered)
 - **Swagger UI** — Interactive API documentation with Bearer token authentication
 
 ---
@@ -187,9 +188,9 @@ docker-compose exec app python -m pytest tests/test_auth.py -v
 tests/test_auth.py       ✅ 4/4 passing
 tests/test_products.py   ✅ 7/7 passing
 tests/test_cart.py       ✅ 3/3 passing
-tests/test_orders.py     ✅ 4/4 passing
+tests/test_orders.py     ✅ 5/5 passing
 ─────────────────────────────────────
-Total                    ✅ 18/18 passing
+Total                    ✅ 19/19 passing
 ```
 
 ---
