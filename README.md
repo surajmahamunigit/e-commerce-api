@@ -1,6 +1,10 @@
 # 🛒 E-Commerce API
 
-A production-grade REST API for an e-commerce platform built with **FastAPI** and **PostgreSQL**. Features JWT authentication, role-based access control, shopping cart, order management, and full Docker containerization.
+A production-grade REST API for an e-commerce platform built with **FastAPI** and **PostgreSQL**. Features JWT authentication, role-based access control, shopping cart, Stripe payment integration, order state machine, Alembic migrations, and full Docker containerization deployed on AWS.
+
+## 🌐 Live Demo
+- **Swagger UI:** http://54.165.161.13:8000/docs
+- **Health Check:** http://54.165.161.13:8000/health
 
 ---
 
@@ -10,11 +14,13 @@ A production-grade REST API for an e-commerce platform built with **FastAPI** an
 - **Role-Based Access Control** — Admin-only product management, user-specific cart and orders
 - **Product Management** — Full CRUD with filtering by category, price range, and pagination
 - **Shopping Cart** — Add, view, and remove items tied to authenticated users
-- **Order Management** — Checkout from cart, view order history, single order retrieval
-- **Dockerized** — Full Docker + docker-compose setup with PostgreSQL
-- **19 Passing Tests** — Comprehensive test suite covering auth, products, cart, and orders
-- **Order State Machine** — Enforces valid order status transitions (pending → confirmed → shipped → delivered)
-- **Swagger UI** — Interactive API documentation with Bearer token authentication
+- **Stripe Payment Integration** — PaymentIntent creation on checkout
+- **Order State Machine** — Enforces valid status transitions (pending → confirmed → shipped → delivered)
+- **Alembic Migrations** — Versioned database migrations with upgrade/downgrade support
+- **19 Passing Tests** — Comprehensive test suite with PostgreSQL transaction rollback isolation
+- **CI/CD Pipeline** — GitHub Actions auto-runs tests on every push
+- **Docker** — Full Docker + docker-compose setup with PostgreSQL
+- **AWS Deployment** — Live on EC2 with RDS PostgreSQL database
 
 ---
 
@@ -25,10 +31,14 @@ A production-grade REST API for an e-commerce platform built with **FastAPI** an
 | Framework | FastAPI |
 | Database | PostgreSQL |
 | ORM | SQLAlchemy |
+| Migrations | Alembic |
 | Auth | JWT (python-jose) + Argon2 |
 | Validation | Pydantic v2 |
+| Payments | Stripe |
 | Testing | pytest + httpx |
 | Containerization | Docker + docker-compose |
+| CI/CD | GitHub Actions |
+| Cloud | AWS EC2 + RDS |
 
 ---
 
@@ -58,16 +68,24 @@ e-commerce-api/
 │   │   ├── cart.py
 │   │   └── orders.py
 │   └── utils/
-│       ├── security.py      # Password hashing
-│       └── dependencies.py  # JWT token validation
+│       ├── security.py      # Argon2 password hashing
+│       ├── dependencies.py  # JWT token validation
+│       └── stripe_handler.py # Stripe PaymentIntent creation
+├── migration/               # Alembic migrations
+│   ├── env.py
+│   └── versions/
 ├── tests/
 │   ├── conftest.py
 │   ├── test_auth.py
 │   ├── test_products.py
 │   ├── test_cart.py
 │   └── test_orders.py
+├── .github/
+│   └── workflows/
+│       └── tests.yml        # CI/CD pipeline
 ├── Dockerfile
 ├── docker-compose.yml
+├── alembic.ini
 ├── requirements.txt
 └── .env.example
 ```
@@ -96,7 +114,12 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-### 4. Access the API
+### 4. Run database migrations
+```bash
+docker-compose exec app python -m alembic upgrade head
+```
+
+### 5. Access the API
 - **Swagger UI:** http://localhost:8000/docs
 - **Health Check:** http://localhost:8000/health
 
@@ -129,15 +152,14 @@ docker-compose up -d
 ### Orders
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| POST | `/orders/checkout` | Checkout cart and create order | Yes |
+| POST | `/orders/checkout` | Checkout cart, create Stripe PaymentIntent | Yes |
 | GET | `/orders/` | Get all orders for user | Yes |
 | GET | `/orders/{id}` | Get single order | Yes |
+| PATCH | `/orders/{id}/status` | Update order status (state machine) | Admin only |
 
 ---
 
 ## 🔐 Authentication
-
-This API uses **JWT Bearer tokens**.
 
 1. Register: `POST /auth/register`
 2. Login: `POST /auth/login` → copy the `access_token`
@@ -145,13 +167,21 @@ This API uses **JWT Bearer tokens**.
 4. All protected endpoints will now work
 
 ### Admin Access
-To access admin endpoints (create/update/delete products), register with:
-```json
-{
-  "email": "admin@example.com",
-  "password": "yourpassword"
-}
+Register with `admin@example.com` to access product management and order status endpoints.
+
+---
+
+## 🔄 Order State Machine
+
+Orders follow strict transition rules:
+
 ```
+pending → confirmed → shipped → delivered
+pending → cancelled
+confirmed → cancelled
+```
+
+Invalid transitions return `400 Bad Request` with allowed transitions listed.
 
 ---
 
@@ -169,6 +199,24 @@ GET /products/?skip=0&limit=10
 
 # Combined
 GET /products/?category=Electronics&min_price=100&max_price=500&skip=0&limit=10
+```
+
+---
+
+## 🗄️ Database Migrations (Alembic)
+
+```bash
+# Apply all pending migrations
+python -m alembic upgrade head
+
+# Roll back one migration
+python -m alembic downgrade -1
+
+# Create new migration after model change
+python -m alembic revision --autogenerate -m "description"
+
+# View migration history
+python -m alembic history
 ```
 
 ---
@@ -217,6 +265,15 @@ docker-compose up -d
 
 ---
 
+## ☁️ AWS Deployment
+
+The API is deployed on AWS:
+- **EC2:** t3.micro (Ubuntu 24.04 LTS)
+- **RDS:** PostgreSQL 15 (db.t4g.micro)
+- **Live URL:** http://54.165.161.13:8000/docs
+
+---
+
 ## 🌱 Environment Variables
 
 Create a `.env` file based on `.env.example`:
@@ -226,6 +283,9 @@ DATABASE_URL=postgresql://user:password@db:5432/ecommerce
 SECRET_KEY=your-secret-key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
+STRIPE_SECRET_KEY=sk_test_your_stripe_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+ENVIRONMENT=development
 ```
 
 ---
