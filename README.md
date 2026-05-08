@@ -120,8 +120,9 @@ docker-compose exec app python -m alembic upgrade head
 ```
 
 ### 5. Access the API
-- **Swagger UI:** http://localhost:8000/docs
-- **Health Check:** http://localhost:8000/health
+- **Swagger UI (Local):** http://localhost:8000/docs
+- **Swagger UI (Live):** http://54.165.161.13:8000/docs
+- **Health Check:** http://54.165.161.13:8000/health
 
 ---
 
