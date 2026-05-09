@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -8,14 +8,19 @@ from app.schemas.order import OrderResponse, OrderItemResponse, OrderStatusUpdat
 from app.utils.dependencies import get_current_user
 from app.utils.stripe_handler import create_payment_intent
 
+from app.utils.limiter import limiter
+
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
 
 @router.post(
     "/checkout", response_model=OrderResponse, status_code=status.HTTP_201_CREATED
 )
+@limiter.limit("3/minutes")
 def checkout(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Returns order details after successful checkout.
