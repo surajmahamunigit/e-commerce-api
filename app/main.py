@@ -2,6 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.utils.limiter import limiter
+
 from app.db.database import Base, engine
 from app.routes import auth, products, cart, orders
 
@@ -10,6 +14,12 @@ app = FastAPI(
     description="Production-grade e-commerce REST API",
     version="1.0.0",
 )
+
+
+# Add rate limit error handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 app.add_middleware(
     CORSMiddleware,

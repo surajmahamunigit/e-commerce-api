@@ -1,3 +1,7 @@
+import os
+
+os.environ["TESTING"] = "true"
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -5,7 +9,6 @@ from app.db.database import Base, get_db
 from app.main import app
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
-import os
 
 # Use PostgreSQL in Docker, SQLite locally
 DATABASE_URL = os.getenv(

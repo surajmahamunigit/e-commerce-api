@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
@@ -6,14 +6,20 @@ from app.models import User
 from app.schemas.user import UserCreate, UserResponse, UserLogin
 from app.utils.security import hash_password, verify_password, create_access_token
 
+from app.utils.limiter import limiter
+
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Register a new user."""
+@limiter.limit("5/minute")
+def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
+    """
+    Register a new user.
+    Rate limited to 5 requests per minute per IP.
+    """
 
     existing_user = db.query(User).filter(User.email == user_data.email).first()
 
@@ -34,8 +40,12 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", status_code=status.HTTP_200_OK)
-def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    """Authenticate user and return access token"""
+@limiter.limit("5/minute")
+def login(request: Request, user_data: UserLogin, db: Session = Depends(get_db)):
+    """
+    Authenticate user and return access token
+    Rate limited to 5 requests per minute per IP.
+    """
 
     user = db.query(User).filter(User.email == user_data.email).first()
 
