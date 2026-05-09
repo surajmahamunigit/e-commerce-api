@@ -1,6 +1,6 @@
 # 🛒 E-Commerce API
 
-A production-grade REST API for an e-commerce platform built with **FastAPI** and **PostgreSQL**. Features JWT authentication, role-based access control, shopping cart, Stripe payment integration, order state machine, Alembic migrations, and full Docker containerization deployed on AWS.
+A production-grade REST API for an e-commerce platform built with **FastAPI** and **PostgreSQL**. Features JWT authentication, role-based access control, shopping cart, Stripe payment integration, order state machine, rate limiting, Alembic migrations, and full Docker containerization deployed on AWS.
 
 ## 🌐 Live Demo
 - **Swagger UI:** http://54.165.161.13:8000/docs
@@ -16,6 +16,7 @@ A production-grade REST API for an e-commerce platform built with **FastAPI** an
 - **Shopping Cart** — Add, view, and remove items tied to authenticated users
 - **Stripe Payment Integration** — PaymentIntent creation on checkout
 - **Order State Machine** — Enforces valid status transitions (pending → confirmed → shipped → delivered)
+- **Rate Limiting** — Brute force protection on auth endpoints (5/min) and checkout (3/min)
 - **Alembic Migrations** — Versioned database migrations with upgrade/downgrade support
 - **19 Passing Tests** — Comprehensive test suite with PostgreSQL transaction rollback isolation
 - **CI/CD Pipeline** — GitHub Actions auto-runs tests on every push
@@ -35,6 +36,7 @@ A production-grade REST API for an e-commerce platform built with **FastAPI** an
 | Auth | JWT (python-jose) + Argon2 |
 | Validation | Pydantic v2 |
 | Payments | Stripe |
+| Rate Limiting | SlowAPI |
 | Testing | pytest + httpx |
 | Containerization | Docker + docker-compose |
 | CI/CD | GitHub Actions |
@@ -70,7 +72,8 @@ e-commerce-api/
 │   └── utils/
 │       ├── security.py      # Argon2 password hashing
 │       ├── dependencies.py  # JWT token validation
-│       └── stripe_handler.py # Stripe PaymentIntent creation
+│       ├── stripe_handler.py # Stripe PaymentIntent creation
+│       └── limiter.py       # SlowAPI rate limiter
 ├── migration/               # Alembic migrations
 │   ├── env.py
 │   └── versions/
@@ -131,8 +134,8 @@ docker-compose exec app python -m alembic upgrade head
 ### Auth
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| POST | `/auth/register` | Register a new user | No |
-| POST | `/auth/login` | Login and get JWT token | No |
+| POST | `/auth/register` | Register a new user (5/min limit) | No |
+| POST | `/auth/login` | Login and get JWT token (5/min limit) | No |
 
 ### Products
 | Method | Endpoint | Description | Auth Required |
@@ -153,7 +156,7 @@ docker-compose exec app python -m alembic upgrade head
 ### Orders
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| POST | `/orders/checkout` | Checkout cart, create Stripe PaymentIntent | Yes |
+| POST | `/orders/checkout` | Checkout cart, create Stripe PaymentIntent (3/min limit) | Yes |
 | GET | `/orders/` | Get all orders for user | Yes |
 | GET | `/orders/{id}` | Get single order | Yes |
 | PATCH | `/orders/{id}/status` | Update order status (state machine) | Admin only |
@@ -169,6 +172,18 @@ docker-compose exec app python -m alembic upgrade head
 
 ### Admin Access
 Register with `admin@example.com` to access product management and order status endpoints.
+
+---
+
+## 🛡️ Rate Limiting
+
+| Endpoint | Limit | Reason |
+|----------|-------|--------|
+| `POST /auth/register` | 5/minute | Prevent spam accounts |
+| `POST /auth/login` | 5/minute | Prevent brute force attacks |
+| `POST /orders/checkout` | 3/minute | Prevent payment fraud |
+
+Exceeding the limit returns `429 Too Many Requests`.
 
 ---
 
